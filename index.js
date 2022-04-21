@@ -1,5 +1,12 @@
 const inquirer = require('inquirer');
 const generatePage = require('./src/page-template');
+const Manager = require('./lib/Manager');
+const Engineer = require('./lib/Engineer');
+const Intern = require('./lib/Intern');
+const { writeFile } = require('./utils/generate-site');
+
+let entriesTable = [];
+let pageHTML = '';
 
 const promptStart = () => {
     return inquirer.prompt([
@@ -42,13 +49,27 @@ const promptStart = () => {
                 }
             }
         },
-    ]);
+        {
+            type: 'input',
+            name: 'officeNumber',
+            message: `Enter your Manager's office number`,
+            validate: officeInput => {
+                if (officeInput) {
+                    return true;
+                } else {
+                    console.log('Please enter a valid entry for office!');
+                    return false;
+                }
+            }
+        },
+    ])
+    .then(({ managerName, managerId, managerEmail, officeNumber }) => {
+        this.manager = new Manager(managerName, managerId, managerEmail, officeNumber);
+        entriesTable.push(this.manager);
+    })
 };
 
-const promptUser = employeeListData => {
-    if (!employeeListData.entries) {
-        employeeListData.entries = [];
-    }
+const promptUser = () => {
     return inquirer.prompt([
         {
             type: 'list',
@@ -95,25 +116,83 @@ const promptUser = employeeListData => {
                 }
             }
         },
-        {
-            type: 'confirm',
-            name: 'anotherEmployee',
-            message: 'Would you like to add another employee?',
-            default: false,
-        },
     ])
-    .then(employeeData => {
-        employeeListData.entries.push(employeeData);
-        if (employeeData.anotherEmployee) {
-            return promptUser(employeeListData);
-        } else {
-            return employeeListData;
+    .then(({ employeeType, name, id, email }) => {
+        if (employeeType === 'Engineer') {
+            inquirer.prompt([
+                {
+                    type: 'input',
+                    name: 'github',
+                    message: `Enter your employee's github URL`,
+                    validate: emailInput => {
+                        if (emailInput) {
+                            return true;
+                        } else {
+                            console.log('Please enter a valid github!');
+                            return false;
+                        }
+                    }
+                },
+            ])
+            .then(({ github }) => {
+                this.employee = new Engineer(name, id, email, github);
+                entriesTable.push(this.employee);
+                inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'anotherEmployee',
+                        message: 'Would you like to add another employee?',
+                        default: false,
+                    },
+                ])
+                .then(({anotherEmployee}) => {
+                    if (anotherEmployee) {
+                        return promptUser();
+                    } else {
+                        pageHTML = generatePage(entriesTable);
+                        writeFile(pageHTML);
+                    }
+                })
+            })
+        } else if (employeeType === 'Intern') {
+            inquirer.prompt([
+                {
+                    type: 'input',
+                    name: 'school',
+                    message: `Enter your employee's school`,
+                    validate: emailInput => {
+                        if (emailInput) {
+                            return true;
+                        } else {
+                            console.log('Please enter a valid school!');
+                            return false;
+                        }
+                    }
+                },
+            ])
+            .then(({ school }) => {
+                this.employee = new Intern(name, id, email, school);
+                entriesTable.push(this.employee);
+                inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'anotherEmployee',
+                        message: 'Would you like to add another employee?',
+                        default: false,
+                    },
+                ])
+                .then(({anotherEmployee}) => {
+                    if (anotherEmployee) {
+                        return promptUser();
+                    } else {
+                        pageHTML = generatePage(entriesTable);
+                        writeFile(pageHTML);
+                    }
+                })
+            })
         }
     })
 }
 
 promptStart()
     .then(promptUser)
-    .then(employeeListData => {
-        console.log(employeeListData);
-    })
